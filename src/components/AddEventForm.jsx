@@ -9,11 +9,11 @@ const AddEventForm = () => {
         subject: "",
         start: {
             dateTime: "",
-            timeZone: "UTC"
+            timeZone: "America/Sao_Paulo"
         },
         end: {
             dateTime: "",
-            timeZone: "UTC"
+            timeZone: "America/Sao_Paulo"
         }
     });
 
@@ -26,12 +26,16 @@ const AddEventForm = () => {
     };
 
     const handleDateTimeChange = (e, field) => {
-        const { name, value } = e.target;
+        const { value } = e.target;
+
+        // Converte para ISO 8601
+        const isoDateTime = new Date(value).toISOString();
+
         setEventDetails(prevDetails => ({
             ...prevDetails,
             [field]: {
                 ...prevDetails[field],
-                [name]: value
+                dateTime: isoDateTime // Define a data como ISO
             }
         }));
     };
@@ -58,11 +62,11 @@ const AddEventForm = () => {
             </div>
             <div>
                 <label>Start Date and Time:</label>
-                <input type="datetime-local" name="dateTime" value={eventDetails.start.dateTime} onChange={(e) => handleDateTimeChange(e, "start")} required />
+                <input type="datetime-local" name="dateTime" value={eventDetails.start.dateTime.slice(0, 16)} onChange={(e) => handleDateTimeChange(e, "start")} required />
             </div>
             <div>
                 <label>End Date and Time:</label>
-                <input type="datetime-local" name="dateTime" value={eventDetails.end.dateTime} onChange={(e) => handleDateTimeChange(e, "end")} required />
+                <input type="datetime-local" name="dateTime" value={eventDetails.end.dateTime.slice(0, 16)} onChange={(e) => handleDateTimeChange(e, "end")} required />
             </div>
             <button type="submit">Add Event</button>
         </form>

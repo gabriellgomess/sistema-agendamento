@@ -12,10 +12,9 @@ import Button from 'react-bootstrap/Button';
  * Renders information about the signed-in user or a button to retrieve data about the user
  */
 
-const ProfileContent = () => {
+const ProfileContent = ({ RequestCalendarEvents, calendarEvents, setCalendarEvents }) => {
     const { instance, accounts } = useMsal();
     const [graphData, setGraphData] = useState(null);
-    const [calendarEvents, setCalendarEvents] = useState(null);
     const [editEvent, setEditEvent] = useState(null); // Para armazenar o evento que está sendo editado
 
     function RequestProfileData() {
@@ -26,17 +25,6 @@ const ProfileContent = () => {
             })
             .then((response) => {
                 callMsGraph(response.accessToken).then((response) => setGraphData(response));
-            });
-    }
-
-    function RequestCalendarEvents() {
-        instance
-            .acquireTokenSilent({
-                ...loginRequest,
-                account: accounts[0],
-            })
-            .then((response) => {
-                getCalendarEvents(response.accessToken).then((events) => setCalendarEvents(events.value));
             });
     }
 
@@ -55,13 +43,27 @@ const ProfileContent = () => {
 
     function handleEditSubmit(e) {
         e.preventDefault();
+    
+        // Aqui, garantimos que o fuso horário seja incluído nos detalhes do evento
+        const updatedEvent = {
+            ...editEvent,
+            start: {
+                ...editEvent.start,
+                timeZone: "America/Sao_Paulo" // Informar explicitamente o fuso horário correto
+            },
+            end: {
+                ...editEvent.end,
+                timeZone: "America/Sao_Paulo" // Informar explicitamente o fuso horário correto
+            }
+        };
+    
         instance
             .acquireTokenSilent({
                 ...loginRequest,
                 account: accounts[0],
             })
             .then((response) => {
-                updateCalendarEvent(response.accessToken, editEvent.id, editEvent)
+                updateCalendarEvent(response.accessToken, editEvent.id, updatedEvent)
                     .then(() => {
                         setEditEvent(null); // Limpa o estado de edição
                         RequestCalendarEvents(); // Recarrega a lista após editar
@@ -69,25 +71,30 @@ const ProfileContent = () => {
                     .catch((error) => console.log(error));
             });
     }
+    
+    
 
     function handleEditChange(e) {
         const { name, value } = e.target;
-
+    
+        // Aqui convertendo a data para UTC usando toISOString
+        const dateInUTC = new Date(value).toISOString();
+    
         if (name.includes('start')) {
             setEditEvent((prevEvent) => ({
                 ...prevEvent,
                 start: {
                     ...prevEvent.start,
-                    dateTime: new Date(value).toISOString(), // Simplesmente converte para ISO
-                },
+                    dateTime: dateInUTC // Converte para UTC
+                }
             }));
         } else if (name.includes('end')) {
             setEditEvent((prevEvent) => ({
                 ...prevEvent,
                 end: {
                     ...prevEvent.end,
-                    dateTime: new Date(value).toISOString(), // Simplesmente converte para ISO
-                },
+                    dateTime: dateInUTC // Converte para UTC
+                }
             }));
         } else {
             setEditEvent((prevEvent) => ({
@@ -96,9 +103,8 @@ const ProfileContent = () => {
             }));
         }
     }
-
-
-
+    
+    
 
     return (
         <>
@@ -114,21 +120,25 @@ const ProfileContent = () => {
             {calendarEvents ? (
                 <>
                     <h5>Eventos do Calendário:</h5>
-                    <div style={{ display: 'flex', justifyContent: 'start' }}>
-                        <ul style={{ textAlign: 'left' }}>
+                    <div style={{ display: 'flex', justifyContent: 'start', gap: '15px', flexWrap: 'wrap'}}>
+                        
                             {calendarEvents.map((event) => (
-                                <li key={event.id}>
-                                    <strong>{event.subject}</strong> - {new Date(event.start.dateTime).toLocaleString()} to{' '}
-                                    {new Date(event.end.dateTime).toLocaleString()}
-                                    <Button onClick={() => setEditEvent(event)} variant="primary" style={{ marginLeft: '10px' }}>
-                                        Edit
+                                <div key={event.id} style={{border: '1px solid grey', borderRadius: '10px', width: '400px', padding: '15px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between'  }}>
+                                    <h6>{event.subject}</h6>
+                                    <p>{new Date(event.start.dateTime).toLocaleString()} as{' '}
+                                    {new Date(event.end.dateTime).toLocaleString()}</p>
+                                    <div style={{display: 'flex', justifyContent: 'center'}}>
+                                      <Button onClick={() => setEditEvent(event)} variant="primary" style={{ marginLeft: '10px' }}>
+                                        Editar
                                     </Button>
                                     <Button onClick={() => handleDelete(event.id)} variant="danger" style={{ marginLeft: '10px' }}>
-                                        Delete
-                                    </Button>
-                                </li>
+                                        Deletar
+                                    </Button>  
+                                    </div>
+                                    
+                                </div>
                             ))}
-                        </ul>
+                        
                     </div>
 
                     {/* Formulário de edição de evento */}
@@ -150,7 +160,7 @@ const ProfileContent = () => {
                                 <input
                                     type="datetime-local"
                                     name="start.dateTime"
-                                    value={new Date(editEvent.start.dateTime).toISOString().slice(0, -1)} // Remove o "Z"
+                                    value={new Date(editEvent.start.dateTime).toLocaleString('sv-SE', { timeZone: 'America/Sao_Paulo' }).replace(' ', 'T')}
                                     onChange={handleEditChange}
                                     required
                                 />
@@ -160,18 +170,17 @@ const ProfileContent = () => {
                                 <input
                                     type="datetime-local"
                                     name="end.dateTime"
-                                    value={new Date(editEvent.end.dateTime).toISOString().slice(0, -1)} // Remove o "Z"
+                                    value={new Date(editEvent.end.dateTime).toLocaleString('sv-SE', { timeZone: 'America/Sao_Paulo' }).replace(' ', 'T')}
                                     onChange={handleEditChange}
                                     required
                                 />
                             </div>
+
                             <Button type="submit" variant="success">
                                 Save Changes
                             </Button>
                         </form>
                     )}
-
-
                 </>
             ) : (
                 <Button variant="secondary" onClick={RequestCalendarEvents}>
@@ -186,10 +195,28 @@ const ProfileContent = () => {
  * If a user is authenticated the ProfileContent component above is rendered. Otherwise a message indicating a user is not authenticated is rendered.
  */
 const MainContent = () => {
+    const { instance, accounts } = useMsal();
+    const [calendarEvents, setCalendarEvents] = useState(null); // Mover o estado para MainContent
+
+    const RequestCalendarEvents = () => {
+        instance
+            .acquireTokenSilent({
+                ...loginRequest,
+                account: accounts[0],
+            })
+            .then((response) => {
+                getCalendarEvents(response.accessToken).then((events) => setCalendarEvents(events.value)); // setCalendarEvents agora é acessível aqui
+            });
+    };
+
     return (
         <div className="App">
             <AuthenticatedTemplate>
-                <ProfileContent />
+                <ProfileContent
+                    RequestCalendarEvents={RequestCalendarEvents}
+                    calendarEvents={calendarEvents}
+                    setCalendarEvents={setCalendarEvents} // Passando como props
+                />
                 <AddEventForm onEventAdded={() => RequestCalendarEvents()} />
             </AuthenticatedTemplate>
 

@@ -52,6 +52,10 @@ export async function createCalendarEvent(accessToken, eventDetails) {
     headers.append("Authorization", bearer);
     headers.append("Content-Type", "application/json");
 
+        // Adicionar timeZone nos detalhes do evento
+        eventDetails.start.timeZone = "America/Sao_Paulo"; 
+        eventDetails.end.timeZone = "America/Sao_Paulo";
+
     const options = {
         method: "POST",
         headers: headers,
@@ -76,16 +80,22 @@ export async function updateCalendarEvent(accessToken, eventId, updatedEventDeta
     headers.append("Authorization", bearer);
     headers.append("Content-Type", "application/json");
 
+    // Adicionar timeZone nos detalhes do evento
+    updatedEventDetails.start.timeZone = "America/Sao_Paulo";
+    updatedEventDetails.end.timeZone = "America/Sao_Paulo";
+
     const options = {
         method: "PATCH",
         headers: headers,
-        body: JSON.stringify(updatedEventDetails),
+        body: JSON.stringify(updatedEventDetails), // Aqui os detalhes são enviados com UTC e timeZone correto
     };
 
     return fetch(`https://graph.microsoft.com/v1.0/me/events/${eventId}`, options)
         .then(response => response.json())
         .catch(error => console.log(error));
 }
+
+
 
 /**
  * Deletes an event from the user's calendar.
